@@ -1,7 +1,7 @@
 CSE-535-Chord-DHT
 =================
 
-
+Properties of chord proved in TLA:
 
 - “Ordered appendages” conveys the message that members are ordered correctly within an appendage.
 
