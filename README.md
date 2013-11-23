@@ -1,5 +1,5 @@
-CSE-535-Chord-DHT
-=================
+CSE 535 : Chord Distributed Hash Table
+======================================
 
 Properties of chord proved in TLA:
 
