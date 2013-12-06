@@ -1,28 +1,38 @@
-------------------------- MODULE Chord ------------------------
+------------------------- MODULE Chord1 ------------------------
 EXTENDS Naturals, TLC, Sequences
   
 CONSTANT N
 
 Nodes == 1..N
-max(x,y) == IF x < y THEN y ELSE x
 
 (* --algorithm chord
       variables 
-      matrix = [row \in Nodes |-> [column \in Nodes |-> 9 ]];
       succ = [row \in Nodes |->  9 ];      
       prdc = [row \in Nodes |->  9 ];
       succ2 = [row \in Nodes |-> 9 ];
       newsucc = [row \in Nodes |-> 9 ];
       canfail = 0;
       canjoin = 0;  
-      hsbest=0;  
+      hasbest=0;  
 
     define
+    
         between( x, y, z) ==
-            \/ x < z /\ x < y /\ y < z
+            \/ x < y /\ y < z
             \/ x > z /\ \/ x < z
                         \/ y < z
-      end define;
+        max(x,y) == IF x < y THEN y ELSE x
+
+        member(x) == \/ succ[x] = TRUE 
+
+        nonmember(x) == \/ succ[x] = FALSE /\  prdc[x] = FALSE /\ succ2[x] = FALSE
+        
+        
+        
+        (* valid(x) == \/ OneOrderedRing(x) /\ orderedappendage(x,y) /\ FullSuccessorList(x) /\ NoSelfSuccessors(x) /\ OrderedSuccessors(x) /\ BaseNotSkiped(x) /\ ConnectedAppendages(x) *) 
+            
+    end define;
+            
       
        macro fillvalue(row, column, val)
        begin
@@ -33,11 +43,22 @@ max(x,y) == IF x < y THEN y ELSE x
        variables pre,bet,q;
        begin
        pp1:
-        print "In order";
+        print "Ordered appendage";
         pre:=prdc[n]; q:=succ[n];        
         assert bet=between(pre,m,q);
        ret: return;
        end procedure;    
+       
+       procedure orderedmerges(n,m)
+       variables pre,bet,q;
+       begin
+       pp1:
+        cyclemember=succ[n]
+        print "Ordered merge";
+        pre:=prdc[n]; q:=succ[n];        
+        assert bet=between(pre,m,q);
+       ret: return;
+       end procedure;
        
        procedure hasbest()
        variables j=1..N , p;
@@ -60,14 +81,17 @@ max(x,y) == IF x < y THEN y ELSE x
        end procedure;
 
 
-       process Site \in Nodes
+       process chord \in Nodes
        begin
        label1:
        fillvalue(self,1,4);
        label2: call alloy();
+       (* label3: call orderedappendage(1,2);
+       label4: call hasbest(); *)
        end process;
   end algorithm
 *)
+
 
 
 \* BEGIN TRANSLATION
@@ -80,6 +104,11 @@ between( x, y, z) ==
     \/ x < z /\ x < y /\ y < z
     \/ x > z /\ \/ x < z
                 \/ y < z
+max(x,y) == IF x < y THEN y ELSE x
+
+member(x) == \/ succ[x] = TRUE
+
+nonmember(x) == \/ succ[x] = FALSE /\  prdc[x] = FALSE /\ succ2[x] = FALSE
 
 VARIABLES n, m, pre, bet, q, j, p, hello
 
@@ -116,7 +145,7 @@ pp1(self) == /\ pc[self] = "pp1"
              /\ pre' = [pre EXCEPT ![self] = prdc[n[self]]]
              /\ q' = [q EXCEPT ![self] = succ[n[self]]]
              /\ Assert(bet[self]=between(pre'[self],m[self],q'[self]), 
-                       "Failure of assertion at line 38, column 9.")
+                       "Failure of assertion at line 52, column 9.")
              /\ pc' = [pc EXCEPT ![self] = "ret"]
              /\ UNCHANGED << matrix, succ, prdc, succ2, newsucc, canfail, 
                              canjoin, hsbest, stack, n, m, bet, j, p, hello >>
@@ -140,7 +169,7 @@ hsbl(self) == /\ pc[self] = "hsbl"
                          /\ IF succ[p'[self]] # 9 /\ matrix[p'[self]][1] = 9
                                THEN /\ hsbest' = FALSE
                                     /\ Assert(hsbest', 
-                                              "Failure of assertion at line 49, column 33.")
+                                              "Failure of assertion at line 63, column 33.")
                                ELSE /\ TRUE
                                     /\ UNCHANGED hsbest
                          /\ pc' = [pc EXCEPT ![self] = "hsbl"]
@@ -185,11 +214,11 @@ label2(self) == /\ pc[self] = "label2"
                 /\ UNCHANGED << matrix, succ, prdc, succ2, newsucc, canfail, 
                                 canjoin, hsbest, n, m, pre, bet, q, j, p >>
 
-Site(self) == label1(self) \/ label2(self)
+chord(self) == label1(self) \/ label2(self)
 
 Next == (\E self \in ProcSet:  \/ orderedappendage(self) \/ hasbest(self)
                                \/ alloy(self))
-           \/ (\E self \in Nodes: Site(self))
+           \/ (\E self \in Nodes: chord(self))
            \/ (* Disjunct to prevent deadlock on termination *)
               ((\A self \in ProcSet: pc[self] = "Done") /\ UNCHANGED vars)
 
