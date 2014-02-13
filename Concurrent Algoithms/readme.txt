@@ -1,7 +1,5 @@
 Asynchronous Systems: CSE 535
 Programming Concurrent Algorithms:
-Name :Prasidh Srikanth
-Stony Brook ID : 109294122
 
 1) Lamport's fast mutual exclusion algorithm and (2) Lamport's bakery algorithm are implemented using python.
 The driver program can be run using the following command:

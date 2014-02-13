@@ -1,7 +1,5 @@
 Asynchronous Systems: CSE 535
-Programming Concurrent Algorithms:
-Name :Prasidh Srikanth
-Stony Brook ID : 109294122
+Programming Distributed Algorithms:
 
 Ricart Agrawala Algorithm based on logical timestamps and token is implemented using distalgo for python.
 The driver program can be run using the following command:
