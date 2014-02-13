@@ -1,0 +1,222 @@
+# Ricart-Agrawala Token based Algorithm
+import sys
+import random
+import itertools
+
+class RAToken(DistProcess):
+    # The setup initializes all the variables required
+    def setup(reqProcess,processes,req,tokenFlag):
+        ts = 0
+        myId =  self._id
+        requests = dict.fromkeys(processes,0)
+        tkpresent = tokenFlag
+        token_held = False
+        otherprocessList = processes
+        token  = dict.fromkeys(processes,0)
+        reqProcess = reqProcess
+        requestList = req
+
+    def cs(task):       
+        --starting
+	#Processes increment their own timestamp before requesting to enter the Critical section.
+        ts += 1
+        # If the process does not have a token already, then request for a token
+        if tkpresent==False:
+            print('Process ' + (str(myId)) + (' is sending request to CS'))
+            requests[myId] = ts
+        # Sending request to all other processes
+            send(Request(ts), reqProcess)
+        # Wait until tkpresent is set to true
+        --await
+        await(tkpresent == True) 
+        token[myId] = ts          
+        #Since the token is being used, set token_held to true
+        token_held =   True
+        # Once token_held is set to true, enter the CS
+        --cs
+        task()  
+        --release
+        print('Process ' + (str(myId)) + (' LEAVING CS'))
+        release()
+     
+    # Main function where the processes are assigned
+    def main():
+        
+        def anounce():
+            print('Process ' + (str(myId)) + (' ENTERING CS'))
+        for i in range(1,requestList+1):
+            requestId = i
+            cs(anounce)
+        send(Terminate(self),otherprocessList)
+        await(all(received(Terminate(s))for s in otherprocessList))   	
+
+
+    # OnRequest from other process sets the timestamp of the process.
+    def OnRequest(ts):      
+        requests[_source] = max(requests[_source] , ts)
+        #If currently have the token but not using it, then release it.
+        if (tkpresent == True and token_held == False):
+            release()
+            
+    # Set the Token so that the process can access the CS
+    def OnPrivilege(rtoken):
+        tkpresent = True
+        token = rtoken
+        
+    # Releases token
+    def release():
+        #Assign the timestamp as the token's last assignment and release the token
+        token[myId] = int(ts)
+        token_held = False
+        index = otherprocessList.index(myId)        
+        for i in itertools.chain(range(index+1,len(otherprocessList)),range(0,index-1)):
+            if(requests[otherprocessList[i]] > token[otherprocessList[i]]):                
+                tkpresent = False
+                #send the token to the process i
+                send(Privilege(token),otherprocessList[i])
+                #Break once the token is sent
+                break
+
+class RATimeStamp(DistProcess):
+    # The setup initializes all the variables required
+    def setup(processes, req):
+        Myid = self._id
+        test = 0
+        ts=0
+        defer = []
+        otherprocessList = processes
+        requestList = req
+        counter=0
+
+    def cs(task):		
+
+        --starting
+        print('Process ' + (str(Myid)) + (' is sending request to CS'))	
+	#Processes increment their own timestamp before requesting to enter the Critical section.
+        ts+=1	
+        counter=ts
+        send(Request(counter), otherprocessList)
+        await(all(any((c,p) > (counter,self) for c in received(Reply(c, p))) for p in otherprocessList))
+        #Set test to 1 when the process if entering the critical section
+        test=1		
+        task()
+        print('Process ' + (str(Myid)) + (' LEAVING CS'))
+        release()		
+
+    def main():
+        def anounce():
+            print('Process ' + (str(Myid)) + (' ENTERING CS'))
+        for i in requestList:
+            cs(anounce)
+        send(Terminate(self),otherprocessList)
+        await(all(received(Terminate(s))for s in otherprocessList))   	
+
+    def release():
+        --release
+        #Send messages to all the deferred processes that are waiting to access the CS
+        if defer:
+            print("Sending Release message to deferred process " + str(defer))
+        send(Reply(logical_clock(), self), defer)
+        defer = [] 
+        counter = 0
+        test = 0
+
+    def OnRequest(req):		
+        print("Received request message from " + str(_source))
+        temp1=(counter, self)
+        temp2=(req, _source)
+        #Check for the time stamp values and whether the current process is executing or requesting CS. If the condition satisfies send the reply to the source processes else defer the process.
+        if((temp1 > temp2 and counter > 0) or not ((counter  != 0) or (test == 1))):
+            send(Reply(logical_clock(), self), _source)
+        else:
+            print("Defering process" + str(_source) + " by " + str(Myid))
+            defer.append(_source)
+  				
+# Main function that helps in creating the processes                
+def main():
+
+    # Sets No of processes and requests to default values when both are not specified   
+   if (len(sys.argv)==5) :
+        processes = int(sys.argv[1])
+        request = int(sys.argv[2])
+        times = int(sys.argv[3])
+        step = int(sys.argv[4])  
+
+   elif (len(sys.argv)==3) :
+        processes = int(sys.argv[1])
+        request = int(sys.argv[2])
+        times = 1
+        step = 1  
+   
+   # Sets No of requests to default value when request count is not specified by the user    
+   else:
+        processes = 3
+        request = 3
+        times = 1
+        step = 1
+
+   print('Processes:'+str(processes))
+   print('request:'+str(request))
+   print('times:'+str(times))
+   print('step:'+str(step))
+
+   for x in range(times):
+    use_channel("tcp")
+    processRequests = dict((proc, []) for proc in range(1, processes+1))
+    prequestsList = list(range(1, request + 1))
+    random.shuffle(prequestsList)
+    for req in range(len(prequestsList)):
+        requestId = prequestsList.pop()
+        processRequests[req % processes + 1].append(requestId)
+
+    # Randomly assign requests to each process
+    PId = []
+    for x in range(processes):
+        PId.append(x)
+    requests = dict.fromkeys(PId,0)
+    random.shuffle(PId)
+    ptr = 0
+    # Shuffle again after 1 round of random allocation
+    for i in range(request):
+        if (ptr >= len(PId)):
+            random.shuffle(PId)
+            ptr = 0         
+        requests[PId[ptr]] += 1
+        ptr += 1
+
+    # Create processes using the process list and exclude the process itself
+    processList = list(createprocs(RAToken, processes))
+    processList1 = list(createprocs(RATimeStamp, processes))
+    print("\n RUNNING RICART-AGRAWALA's TIME STAMP-BASED ALGORITHM CLEAR VERSION \n")
+
+    print("\n" +"No of Processes:    "+(str(processes)))
+    print(""+"No of Requests:     "+(str(request))+"\n")
+    rt1=0
+    rt2=0
+    rt1=time.clock()
+    for (cnt,p) in enumerate(processList1):
+        setupprocs([p], [set(processList1) - ({p}),processRequests[cnt+1]])
+    startprocs(processList1)
+    for p in processList1: p.join()
+    rt2=time.clock()
+    rt3=rt2-rt1
+    print('Running time of TIME STAMP-BASED algorithm is.......'+str(rt3))
+    rt1=time.clock()
+
+    for (cnt,p) in enumerate(processList):
+        # The token is initially assigned to Process 1
+        if cnt==0:
+            tokenFlag = True
+        else:
+            tokenFlag = False
+        setupprocs({p}, [set(processList) - ({p}),processList,requests[cnt],tokenFlag])  
+    print("\n RUNNING RICART-AGRAWALA's TOKEN-BASED ALGORITHM CLEAR VERSION \n")
+    print("\n" +"No of Processes:    "+(str(processes)))
+    print(""+"No of Requests:     "+(str(request))+"\n")
+    # Start the processes
+    startprocs(processList)
+    for p in processList: p.join()
+    rt2=time.clock()
+    rt3=rt2-rt1
+    print('Running time of TOKEN-BASED algorithm is.......'+str(rt3))
+    request=request+step
